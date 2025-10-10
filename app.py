@@ -1,3 +1,7 @@
+import sys
+!{sys.executable} -m pip install langchain-community==0.2.12
+
+
 import streamlit as st
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
