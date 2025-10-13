@@ -1,6 +1,3 @@
-import sys
-!{sys.executable} -m pip install langchain-community==0.2.12
-
 #  Import
 
 import streamlit as st
