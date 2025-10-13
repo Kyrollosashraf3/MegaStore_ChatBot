@@ -75,9 +75,6 @@ if "messages" not in st.session_state:
     st.session_state["messages"] = []
 
 
-# textbox
-user_input = st.text_input("Your Question:", placeholder="e.g. What services does MegaStore provide?")
-
 with st.form(key="chat_form", clear_on_submit=True):
     user_input = st.text_input("Your Question:", placeholder="e.g. What services does MegaStore provide?")
     submit = st.form_submit_button("Ask")  # بيتفاعل كمان مع Enter
