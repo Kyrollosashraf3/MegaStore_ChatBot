@@ -75,17 +75,16 @@ if "messages" not in st.session_state:
     st.session_state["messages"] = []
 
 
-with st.form(key="chat_form", clear_on_submit=True):
-    user_input = st.text_input("Your Question:", placeholder="e.g. What services does MegaStore provide?")
-    submit = st.form_submit_button("Ask")  # بيتفاعل كمان مع Enter
+# مربع إدخال السؤال
+user_input = st.text_input("Your Question:", placeholder="e.g. What services does MegaStore provide?")
 
-
-if submit and user_input:
+# زر إرسال السؤال
+if st.button("Ask") and user_input:
     with st.spinner("Thinking..."):
         result = qa.invoke(user_input)
-
         answer_text = result.get("answer", "No answer found.")
         st.session_state["messages"].append((user_input, answer_text))
+
         
 # عرض المحادثة
 for question, answer in st.session_state["messages"]:
