@@ -47,7 +47,7 @@ def load_chain():
         # نموذج الإجابة
         qa_pipeline = pipeline(
             "text2text-generation",
-            model="google/flan-t5-base",
+            model="google/flan-t5-large",
             max_new_tokens=100,
             temperature=0.2,
             device=-1
