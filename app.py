@@ -1,14 +1,21 @@
 import sys
 !{sys.executable} -m pip install langchain-community==0.2.12
 
+#  Import
 
 import streamlit as st
+
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
-from langchain_community.llms import HuggingFacePipeline
+from langchain_community.retrievers import BM25Retriever
+
+from langchain.retrievers import EnsembleRetriever
 from langchain.chains import ConversationalRetrievalChain
 from langchain.memory import ConversationBufferMemory
+
+from langchain_community.llms import HuggingFacePipeline
 from transformers import pipeline
+from langchain.text_splitter import RecursiveCharacterTextSplitter
 
 # -------------------------------
 # إعداد واجهة Streamlit
@@ -20,68 +27,65 @@ st.write("Welcome! Chat with MegaStore’s AI to learn more about our products a
 # -------------------------------
 # تحميل الداتا من الملف
 # -------------------------------
-@st.cache_data
-def load_data():
-    with open("megastore_dataset.txt", "r", encoding="utf-8") as f:
-        return f.readlines()
 
-data = load_data()
+def load_chain():
 
-# -------------------------------
-# إعداد Embeddings و Vector DB
-# -------------------------------
-@st.cache_resource
-def create_vector_db():
-    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-    return FAISS.from_texts(data, embeddings)
-
-vector_db = create_vector_db()
-
-# -------------------------------
-# إعداد LLM و الـ Chain
-# -------------------------------
-@st.cache_resource
-def create_conversational_chain():
-    qa_pipeline = pipeline(
-        "text2text-generation",
-        model="google/flan-t5-base",
-        max_new_tokens=256
+    # Read data
+    file_path = "data/megastore_dataset.txt"
+    with open(file_path, "r", encoding="utf-8") as f:
+        data = f.read()
+    
+    # تقطيع النصوص
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size=300,
+        chunk_overlap=50,
+        separators=["\n\n", "\n", ".", "!", "?", ",", " "]
     )
+    chunks = splitter.split_text(data)
+    
+    # Embeddings
+    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
+    
+    # vector_data_base
+    vector_db = FAISS.from_texts(chunks, embeddings)
+    
+    # Retrievers
+    faiss_retriever = vector_db.as_retriever(search_kwargs={"k": 3})
+    bm25_retriever = BM25Retriever.from_texts(chunks)
+    hybrid_retriever = EnsembleRetriever(retrievers=[bm25_retriever, faiss_retriever], weights=[0.4, 0.6])
+    
+    # pipeline 
+    qa_pipeline = pipeline("text2text-generation", model="google/flan-t5-base", max_new_tokens=50)
     llm = HuggingFacePipeline(pipeline=qa_pipeline)
+    
+    # chat_history
     memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
-    chain = ConversationalRetrievalChain.from_llm(
+
+
+    # RetrievalChain
+    qa = ConversationalRetrievalChain.from_llm(
         llm=llm,
-        retriever=vector_db.as_retriever(),
+        retriever=faiss_retriever,  # or hybrid_retriever
         memory=memory
     )
-    return chain
 
-qa = create_conversational_chain()
+qa = load_chain()
 
-# -------------------------------
-# واجهة الدردشة
-# -------------------------------
+
+# session memory
 if "messages" not in st.session_state:
-    st.session_state.messages = []
+    st.session_state["messages"] = []
 
-# عرض الرسائل السابقة
-for msg in st.session_state.messages:
-    with st.chat_message(msg["role"]):
-        st.markdown(msg["content"])
+# textbox
+user_input = st.text_input("Your Question:", placeholder="e.g. What services does MegaStore provide?")
 
-# إدخال المستخدم
-if question := st.chat_input("Type your question here..."):
-    # أضف السؤال إلى المحادثة
-    st.session_state.messages.append({"role": "user", "content": question})
-    with st.chat_message("user"):
-        st.markdown(question)
+if st.button("Ask") and user_input:
+    answer = qa.invoke(user_input)
+    st.session_state["messages"].append((user_input, answer["answer"]))
 
-    # احصل على الرد من الموديل
-    with st.chat_message("assistant"):
-        with st.spinner("Thinking..."):
-            result = qa({"question": question})
-            answer = result["answer"]
-            st.markdown(answer)
+# عرض المحادثة
+for question, answer in st.session_state["messages"]:
+    st.markdown(f"**🧍‍♂️ You:** {question}")
+    st.markdown(f"**🤖 Bot:** {answer}")
 
-    # احفظ الرد في الجلسة
-    st.session_state.messages.append({"role": "assistant", "content": answer})
+
