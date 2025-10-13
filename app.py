@@ -73,11 +73,6 @@ qa = load_chain()
 # session memory
 if "messages" not in st.session_state:
     st.session_state["messages"] = []
-    
-result = qa({"question": user_input})
-answer_text = result.get("answer", "No answer found.")
-st.session_state["messages"].append((user_input, answer_text))
-
 
 
 # textbox
@@ -90,7 +85,7 @@ with st.form(key="chat_form", clear_on_submit=True):
 
 if submit and user_input:
     with st.spinner("Thinking..."):
-        result = qa.invoke({"question": user_input})
+        result = qa({"question": user_input})
         answer_text = result.get("answer", "No answer found.")
         st.session_state["messages"].append((user_input, answer_text))
         
