@@ -28,7 +28,8 @@ st.write("Welcome! Chat with MegaStore’s AI to learn more about our products a
 def load_chain():
 
     # Read data
-    file_path = "data/megastore_dataset.txt"
+    file_path = "megastore_dataset.txt"
+
     with open(file_path, "r", encoding="utf-8") as f:
         data = f.read()
     
