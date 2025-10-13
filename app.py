@@ -53,7 +53,7 @@ def load_chain():
     hybrid_retriever = EnsembleRetriever(retrievers=[bm25_retriever, faiss_retriever], weights=[0.4, 0.6])
     
     # pipeline 
-    qa_pipeline = pipeline("text2text-generation", model="google/flan-t5-base", max_new_tokens=50)
+    qa_pipeline = pipeline("text2text-generation", model="google/flan-t5-base", max_new_tokens=50,   device=-1)
     llm = HuggingFacePipeline(pipeline=qa_pipeline)
     
     # chat_history
