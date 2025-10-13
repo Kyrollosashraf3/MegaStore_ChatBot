@@ -81,7 +81,8 @@ user_input = st.text_input("Your Question:", placeholder="e.g. What services doe
 # زر إرسال السؤال
 if st.button("Ask") and user_input:
     with st.spinner("Thinking..."):
-        result = qa.invoke(user_input)
+        result = qa.invoke({"question": user_input})
+
         answer_text = result.get("answer", "No answer found.")
         st.session_state["messages"].append((user_input, answer_text))
 
