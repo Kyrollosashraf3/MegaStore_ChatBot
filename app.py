@@ -65,7 +65,7 @@ def load_chain():
             verbose=False
         )
 
-        return qa_chain
+        return qa_chain555555555555555555555
     except Exception as e:
         st.error(f"⚠️ Error while loading chain: {e}")
         return None
