@@ -74,22 +74,19 @@ qa = load_chain()
 if "messages" not in st.session_state:
     st.session_state["messages"] = []
 
-
-# مربع إدخال السؤال
 user_input = st.text_input("Your Question:", placeholder="e.g. What services does MegaStore provide?")
 
-# زر إرسال السؤال
 if st.button("Ask") and user_input:
     with st.spinner("Thinking..."):
-        result = qa.invoke({"question": user_input})
+        try:
+            answer_text = qa.run(user_input)  # الطريقة الآمنة والمجربة
+        except Exception as e:
+            answer_text = f"⚠️ Error: {e}"
 
-        answer_text = result.get("answer", "No answer found.")
         st.session_state["messages"].append((user_input, answer_text))
 
-        
 # عرض المحادثة
 for question, answer in st.session_state["messages"]:
     st.markdown(f"**🧍‍♂️ You:** {question}")
     st.markdown(f"**🤖 Bot:** {answer}")
-
 
