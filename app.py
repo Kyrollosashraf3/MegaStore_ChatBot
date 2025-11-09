@@ -1,18 +1,8 @@
-#from langchain.retrievers import EnsembleRetriever
-#from langchain.chains import ConversationalRetrievalChain
-#from langchain.memory import ConversationBufferMemory
-#from langchain.chains import RetrievalQA
+from langchain.chains import ConversationalRetrievalChain
+from langchain.memory import ConversationBufferMemory
 from langchain_community.embeddings import HuggingFaceEmbeddings
-
 from langchain_community.vectorstores import FAISS
 from langchain_community.retrievers import BM25Retriever
-
-from langchain.chains import create_retrieval_chain, create_history_aware_retriever
-from langchain_core.prompts import ChatPromptTemplate
-from langchain.memory import ConversationBufferMemory  
-
-
-
 from langchain_community.llms import HuggingFacePipeline
 from transformers import pipeline
 
@@ -55,8 +45,6 @@ hybrid_retriever = EnsembleRetriever(
     retrievers=[bm25_retriever, faiss_retriever],
     weights=[0.4, 0.6]  # weights of 2 ways
 )
-
-
 
 
 
