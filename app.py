@@ -1,62 +1,89 @@
-# -------------------------------
-# 🛍️ MegaStore AI Assistant (New LangChain API - Streamlit Stable)
-# -------------------------------
+! pip install langchain langchain-community langchain-huggingface
+! pip install faiss-cpu chromadb
 
-import streamlit as st
+
+
 from langchain_community.embeddings import HuggingFaceEmbeddings
-from langchain_community.vectorstores import FAISS
-from langchain_community.llms import HuggingFacePipeline
 
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_community.vectorstores import FAISS
+from langchain_community.retrievers import BM25Retriever
+from langchain.retrievers import EnsembleRetriever
+
+from langchain_community.llms import HuggingFacePipeline
+from langchain.chains import RetrievalQA
 from transformers import pipeline
 
-from langchain_core.messages import HumanMessage
-from langchain_core.prompts import ChatPromptTemplate
-from langchain.chains import create_retrieval_chain, create_history_aware_retriever
+
+file_path = "/content/megastore_dataset.txt"
+with open(file_path, "r", encoding="utf-8") as f:
+    data = f.read()
+
+
+#data = data.split("\n\n")
+
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+
+splitter = RecursiveCharacterTextSplitter(
+                      chunk_size=300,
+                      chunk_overlap=100,
+                      separators= ["\n\n", "\n", ".", "!", "?", ",", " "]
+)
+
+chunks  = splitter.split_text(data)
+
+
+
+
+
+# 1- embeddings from Hugging Face
+embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
+# sentence-transformers/all-MiniLM-L6-v2 - sentence-transformers/all-MiniLM-L12-v2"
+
+
+# 2- We save the embeddings in the FAISS database.
+vector_db = FAISS.from_texts(chunks, embeddings)
+
+
+# 3-  retriever (FAISS- BM25Retriever)
+faiss_retriever = vector_db.as_retriever(search_kwargs={"k": 3})  # k : n of the most similarity results
+bm25_retriever = BM25Retriever.from_texts(chunks)
+
+hybrid_retriever = EnsembleRetriever(
+    retrievers=[bm25_retriever, faiss_retriever],
+    weights=[0.4, 0.6]  # weights of 2 ways
+)
+
+
+
+
+
+
+qa_pipeline = pipeline("text2text-generation", model="google/flan-t5-base", max_new_tokens=20)
+#other models : google/flan-t5-small , base , large, google/t5-v1_1-base
+
+# LangChain
+llm = HuggingFacePipeline(pipeline=qa_pipeline)
+
+from langchain.chains import ConversationalRetrievalChain
 from langchain.memory import ConversationBufferMemory
 
-# -------------------------------
-# Streamlit UI
-# -------------------------------
-st.set_page_config(page_title="🛍️ MegaStore AI Assistant", page_icon="🛒", layout="centered")
-st.title("🛍️ MegaStore AI Assistant")
-st.write("Welcome! Chat with MegaStore’s AI to learn about our products and services.")
+# memory
+memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
+
+
+qa = ConversationalRetrievalChain.from_llm(
+    llm=llm,
+    retriever=faiss_retriever,
+    memory=memory
+)
+
+
+
 
 # -------------------------------
-# Load Chain
+# Build the Q&A chain
 # -------------------------------
-@st.cache_resource
-def load_chain():
-
-    # Load data
-    file_path = "megastore_dataset.txt"
-    data = open(file_path, "r", encoding="utf-8").read()
-
-    splitter = RecursiveCharacterTextSplitter(
-        chunk_size=300,
-        chunk_overlap=50
-    )
-    chunks = splitter.split_text(data)
-
-    # Embeddings
-    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-
-    # Vector DB
-    vector_db = FAISS.from_texts(chunks, embeddings)
-    retriever = vector_db.as_retriever(search_kwargs={"k": 4})
-
-    # LLM
-    t5 = pipeline(
-        "text2text-generation",
-        model="google/flan-t5-large",
-        max_new_tokens=200,
-        temperature=0.2
-    )
-    llm = HuggingFacePipeline(pipeline=t5)
-
-    # Memory
-    memory = ConversationBufferMemory(return_messages=True, memory_key="chat_history")
-
+try:
     # History-aware retriever
     history_prompt = ChatPromptTemplate.from_messages([
         ("user", "{input}"),
@@ -77,19 +104,20 @@ def load_chain():
     ])
 
     # Main chain
-    chain = create_retrieval_chain(
+    qa_chain = create_retrieval_chain(
         history_retriever,
         llm,
         answer_prompt
     )
 
-    return chain, memory
+except Exception as e:
+    st.error(f"⚠️ Error while loading chain: {e}")
+    qa_chain = None
 
-
-chain, memory = load_chain()
+qa = qa_chain
 
 # -------------------------------
-# Chat UI
+# User interface (Q&A)
 # -------------------------------
 if "messages" not in st.session_state:
     st.session_state["messages"] = []
@@ -98,20 +126,23 @@ user_input = st.text_input("Your Question:", placeholder="e.g. What services doe
 
 if st.button("Ask") and user_input:
     with st.spinner("Thinking..."):
+        if qa is None:
+            answer_text = "⚠️ Model failed to load. Please check the logs."
+        else:
+            try:
+                # Add user question to memory
+                memory.chat_memory.add_message(HumanMessage(content=user_input))
+                # Run the chain
+                output = qa.invoke({"input": user_input, "chat_history": memory.chat_memory.messages})
+                answer_text = output["answer"]
+            except Exception as e:
+                answer_text = f"⚠️ Error: {e}"
 
-        # Add message to memory
-        memory.chat_memory.add_message(HumanMessage(content=user_input))
+        st.session_state["messages"].append((user_input, answer_text))
 
-        # Run chain
-        try:
-            output = chain.invoke({"input": user_input, "chat_history": memory.chat_memory.messages})
-            answer = output["answer"]
-        except Exception as e:
-            answer = f"⚠️ Error: {e}"
+# Display the chat
+for question, answer in st.session_state["messages"]:
+    st.markdown(f"**🧍‍♂️ You:** {question}")
+    st.markdown(f"**🤖 Bot:** {answer}")
 
-        st.session_state["messages"].append((user_input, answer))
 
-# Show chat
-for q, a in st.session_state["messages"]:
-    st.markdown(f"**🧍‍♂️ You:** {q}")
-    st.markdown(f"**🤖 Bot:** {a}")
