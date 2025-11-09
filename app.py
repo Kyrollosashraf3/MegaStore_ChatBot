@@ -1,6 +1,3 @@
-! pip install langchain langchain-community langchain-huggingface
-! pip install faiss-cpu chromadb
-
 
 
 from langchain_community.embeddings import HuggingFaceEmbeddings
