@@ -5,7 +5,8 @@ from langchain_community.llms import HuggingFacePipeline
 from langchain_community.retrievers import BM25Retriever
 from transformers import pipeline
 
-from langchain.memory import ConversationBufferMemory
+from langchain_community.memory import ConversationBufferMemory
+
 from langchain.chains import RetrievalQA
 
 # -------------------------------
