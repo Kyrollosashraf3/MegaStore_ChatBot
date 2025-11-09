@@ -28,7 +28,7 @@ vector_db = FAISS.from_texts(documents, embeddings)
 # -------------------------------
 # Initialize LLM
 # -------------------------------
-qa_pipeline = pipeline("text2text-generation", model="google/flan-t5-base", max_new_tokens=100)
+qa_pipeline = pipeline("text2text-generation", model="google/flan-t5-small", max_new_tokens=100)
 llm = HuggingFacePipeline(pipeline=qa_pipeline)
 
 # -------------------------------
