@@ -14,7 +14,7 @@ st.write("Welcome! Chat with MegaStore’s AI to learn about our products and se
 # -------------------------------
 # Load data and build embeddings
 # -------------------------------
-file_path = "/content/megastore_dataset.txt"  # replace with your dataset path
+file_path = "megastore_dataset.txt"  # replace with your dataset path
 with open(file_path, "r", encoding="utf-8") as f:
     data = f.read()
 
