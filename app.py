@@ -4,8 +4,6 @@ from langchain_community.vectorstores import FAISS
 from langchain_community.llms import HuggingFacePipeline
 from transformers import pipeline
 
-
-from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.memory import ConversationBufferMemory
 
 # -------------------------------
@@ -22,20 +20,12 @@ file_path = "/content/megastore_dataset.txt"
 with open(file_path, "r", encoding="utf-8") as f:
     data = f.read()
 
-# Split text into smaller chunks
-splitter = RecursiveCharacterTextSplitter(
-    chunk_size=300,
-    chunk_overlap=100,
-    separators=["\n\n", "\n", ".", "!", "?", ",", " "]
-)
-chunks = splitter.split_text(data)
-
 # Create embeddings and FAISS vector store
 embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
-vector_db = FAISS.from_texts(chunks, embeddings)
 
-# Use FAISS retriever only
-retriever = vector_db.as_retriever(search_kwargs={"k": 3})
+# FAISS expects a list of documents, so we can split manually by paragraphs
+documents = [para for para in data.split("\n\n") if para.strip() != ""]
+vector_db = FAISS.from_texts(documents, embeddings)
 
 # -------------------------------
 # Initialize LLM
@@ -49,15 +39,6 @@ llm = HuggingFacePipeline(pipeline=qa_pipeline)
 memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
 
 # -------------------------------
-# Build the QA chain
-# -------------------------------
-qa = RetrievalQA.from_chain_type(
-    llm=llm,
-    retriever=retriever,
-    return_source_documents=False
-)
-
-# -------------------------------
 # User interface (Q&A)
 # -------------------------------
 if "messages" not in st.session_state:
@@ -68,8 +49,15 @@ user_input = st.text_input("Your Question:", placeholder="e.g. What services doe
 if st.button("Ask") and user_input:
     with st.spinner("Thinking..."):
         try:
-            # Run the QA chain
-            answer_text = qa.run(user_input)
+            # Get top 3 relevant documents from FAISS
+            docs = vector_db.as_retriever(search_kwargs={"k": 3}).get_relevant_documents(user_input)
+            context = "\n".join([doc.page_content for doc in docs])
+
+            # Prepare prompt for LLM
+            prompt = f"Answer the question based on the context below:\n\nContext:\n{context}\n\nQuestion:\n{user_input}"
+
+            # Run LLM
+            answer_text = llm(prompt)
         except Exception as e:
             answer_text = f"⚠️ Error: {e}"
 
