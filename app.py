@@ -1,5 +1,3 @@
-from langchain.chains import ConversationalRetrievalChain
-from langchain.memory import ConversationBufferMemory
 
 
 from langchain_community.embeddings import HuggingFaceEmbeddings
