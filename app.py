@@ -4,8 +4,6 @@ from langchain_community.vectorstores import FAISS
 from langchain_community.llms import HuggingFacePipeline
 from transformers import pipeline
 
-from langchain.memory import ConversationBufferMemory
-
 # -------------------------------
 # Streamlit UI
 # -------------------------------
@@ -16,15 +14,15 @@ st.write("Welcome! Chat with MegaStore’s AI to learn about our products and se
 # -------------------------------
 # Load data and build embeddings
 # -------------------------------
-file_path = "/content/megastore_dataset.txt"
+file_path = "/content/megastore_dataset.txt"  # replace with your dataset path
 with open(file_path, "r", encoding="utf-8") as f:
     data = f.read()
 
+# Split data into paragraphs manually
+documents = [para for para in data.split("\n\n") if para.strip() != ""]
+
 # Create embeddings and FAISS vector store
 embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
-
-# FAISS expects a list of documents, so we can split manually by paragraphs
-documents = [para for para in data.split("\n\n") if para.strip() != ""]
 vector_db = FAISS.from_texts(documents, embeddings)
 
 # -------------------------------
@@ -32,11 +30,6 @@ vector_db = FAISS.from_texts(documents, embeddings)
 # -------------------------------
 qa_pipeline = pipeline("text2text-generation", model="google/flan-t5-base", max_new_tokens=100)
 llm = HuggingFacePipeline(pipeline=qa_pipeline)
-
-# -------------------------------
-# Memory for chat history
-# -------------------------------
-memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
 
 # -------------------------------
 # User interface (Q&A)
@@ -61,9 +54,10 @@ if st.button("Ask") and user_input:
         except Exception as e:
             answer_text = f"⚠️ Error: {e}"
 
+        # Save Q&A in session state
         st.session_state["messages"].append((user_input, answer_text))
 
-# Display chat messages
+# Display chat history
 for question, answer in st.session_state["messages"]:
     st.markdown(f"**🧍‍♂️ You:** {question}")
     st.markdown(f"**🤖 Bot:** {answer}")
