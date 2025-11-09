@@ -5,7 +5,8 @@
 import streamlit as st
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
-from langchain.chains import ConversationalRetrievalChain
+#from langchain.chains import ConversationalRetrievalChain
+from langchain.chains import create_retrieval_chain
 from langchain.memory import ConversationBufferMemory
 from langchain_community.llms import HuggingFacePipeline
 from transformers import pipeline
@@ -58,7 +59,7 @@ def load_chain():
         memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
 
         # بناء سلسلة الأسئلة والأجوبة
-        qa_chain = ConversationalRetrievalChain.from_llm(
+        qa_chain = create_retrieval_chain.from_llm(
             llm=llm,
             retriever=retriever,
             memory=memory,
